@@ -389,51 +389,77 @@ jobs:
             
             # Validar DataPower Interno si existe y guardar si es todo NA
             interno_all_na=0
+            interno_just_na=0
             if [ $has_interno -eq 1 ] && [ $interno_empty -eq 0 ]; then
-              validate_datapower_table "DataPower Interno :" "interno"
-              # Verificar si todas las filas son NA (reutilizar la variable all_na de la función)
+              # Extraer contenido de la subsección para verificar si es solo NA
               dp_interno_content=$(awk '/^### DataPower Interno :/{flag=1; next} /^### / || /^## /{flag=0} flag' README.md)
-              dp_interno_rows=$(echo "$dp_interno_content" | awk '/^\|---/ {flag=1; next} /^[^|]/ {flag=0} flag && /^\|/ {print}')
-              if [ -n "$dp_interno_rows" ]; then
-                interno_all_na=1
-                while IFS= read -r row; do
-                  row_content_check=$(echo "$row" | sed 's/^|//;s/|$//' | sed 's/|/ /g' | xargs)
-                  if ! echo "$row_content_check" | grep -Piq '^(DESARROLLO|CALIDAD|PRODUCCION)\s+N/?A\s+N/?A\s+N/?A\s+N/?A$'; then
-                    interno_all_na=0
-                    break
-                  fi
-                done <<< "$dp_interno_rows"
+              dp_interno_content_clean=$(echo "$dp_interno_content" | grep -v '^[[:space:]]*$')
+              
+              # Verificar si solo contiene "NA", "N/A", o "No Aplica" (sin tabla)
+              if echo "$dp_interno_content_clean" | grep -Piq '^\s*(N\s*/?\s*A|No\s+Aplica)\s*$'; then
+                echo "::notice title=Validación de README.md::DataPower Interno contiene solo 'NA'/'N/A'/'No Aplica' (válido - sin tabla)"
+                interno_just_na=1
+              else
+                # Solo validar tabla si no es solo NA
+                validate_datapower_table "DataPower Interno :" "interno"
+                # Verificar si todas las filas son NA (reutilizar la variable all_na de la función)
+                dp_interno_rows=$(echo "$dp_interno_content" | awk '/^\|---/ {flag=1; next} /^[^|]/ {flag=0} flag && /^\|/ {print}')
+                if [ -n "$dp_interno_rows" ]; then
+                  interno_all_na=1
+                  while IFS= read -r row; do
+                    row_content_check=$(echo "$row" | sed 's/^|//;s/|$//' | sed 's/|/ /g' | xargs)
+                    if ! echo "$row_content_check" | grep -Piq '^(DESARROLLO|CALIDAD|PRODUCCION)\s+N/?A\s+N/?A\s+N/?A\s+N/?A$'; then
+                      interno_all_na=0
+                      break
+                    fi
+                  done <<< "$dp_interno_rows"
+                fi
               fi
             fi
             
             # Validar DataPower Externo si existe y guardar si es todo NA
             externo_all_na=0
+            externo_just_na=0
             if [ $has_externo -eq 1 ] && [ $externo_empty -eq 0 ]; then
-              validate_datapower_table "DataPower Externo :" "externo"
-              # Verificar si todas las filas son NA
+              # Extraer contenido de la subsección para verificar si es solo NA
               dp_externo_content=$(awk '/^### DataPower Externo :/{flag=1; next} /^### / || /^## /{flag=0} flag' README.md)
-              dp_externo_rows=$(echo "$dp_externo_content" | awk '/^\|---/ {flag=1; next} /^[^|]/ {flag=0} flag && /^\|/ {print}')
-              if [ -n "$dp_externo_rows" ]; then
-                externo_all_na=1
-                while IFS= read -r row; do
-                  row_content_check=$(echo "$row" | sed 's/^|//;s/|$//' | sed 's/|/ /g' | xargs)
-                  if ! echo "$row_content_check" | grep -Piq '^(DESARROLLO|CALIDAD|PRODUCCION)\s+N/?A\s+N/?A\s+N/?A\s+N/?A$'; then
-                    externo_all_na=0
-                    break
-                  fi
-                done <<< "$dp_externo_rows"
+              dp_externo_content_clean=$(echo "$dp_externo_content" | grep -v '^[[:space:]]*$')
+              
+              # Verificar si solo contiene "NA", "N/A", o "No Aplica" (sin tabla)
+              if echo "$dp_externo_content_clean" | grep -Piq '^\s*(N\s*/?\s*A|No\s+Aplica)\s*$'; then
+                echo "::notice title=Validación de README.md::DataPower Externo contiene solo 'NA'/'N/A'/'No Aplica' (válido - sin tabla)"
+                externo_just_na=1
+              else
+                # Solo validar tabla si no es solo NA
+                validate_datapower_table "DataPower Externo :" "externo"
+                # Verificar si todas las filas son NA
+                dp_externo_rows=$(echo "$dp_externo_content" | awk '/^\|---/ {flag=1; next} /^[^|]/ {flag=0} flag && /^\|/ {print}')
+                if [ -n "$dp_externo_rows" ]; then
+                  externo_all_na=1
+                  while IFS= read -r row; do
+                    row_content_check=$(echo "$row" | sed 's/^|//;s/|$//' | sed 's/|/ /g' | xargs)
+                    if ! echo "$row_content_check" | grep -Piq '^(DESARROLLO|CALIDAD|PRODUCCION)\s+N/?A\s+N/?A\s+N/?A\s+N/?A$'; then
+                      externo_all_na=0
+                      break
+                    fi
+                  done <<< "$dp_externo_rows"
+                fi
               fi
             fi
             
             # Validar que si una tabla tiene todo N/A, ambas deben tener todo N/A
             if [ $has_interno -eq 1 ] && [ $has_externo -eq 1 ] && [ $interno_empty -eq 0 ] && [ $externo_empty -eq 0 ]; then
-              if [ $interno_all_na -eq 1 ] && [ $externo_all_na -eq 0 ]; then
+              # Considerar "just_na" (sin tabla) como equivalente a all_na (tabla con todos N/A)
+              interno_is_na=$((interno_all_na + interno_just_na))
+              externo_is_na=$((externo_all_na + externo_just_na))
+              
+              if [ $interno_is_na -gt 0 ] && [ $externo_is_na -eq 0 ]; then
                 echo "::error title=Validación de README.md::La tabla 'DataPower Interno' tiene todos los valores en N/A pero 'DataPower Externo' tiene apuntamientos. Si no hay apuntamientos, ambas tablas deben tener todos sus valores en N/A."
                 failed=1
-              elif [ $externo_all_na -eq 1 ] && [ $interno_all_na -eq 0 ]; then
+              elif [ $externo_is_na -gt 0 ] && [ $interno_is_na -eq 0 ]; then
                 echo "::error title=Validación de README.md::La tabla 'DataPower Externo' tiene todos los valores en N/A pero 'DataPower Interno' tiene apuntamientos. Si no hay apuntamientos, ambas tablas deben tener todos sus valores en N/A."
                 failed=1
-              elif [ $interno_all_na -eq 1 ] && [ $externo_all_na -eq 1 ]; then
+              elif [ $interno_is_na -gt 0 ] && [ $externo_is_na -gt 0 ]; then
                 echo "::notice title=Validación de README.md::Ambas tablas DataPower tienen todos los valores en N/A (válido - sin apuntamientos)"
               fi
             fi
