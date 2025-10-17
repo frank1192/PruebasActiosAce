@@ -634,7 +634,7 @@ select * from admesb.esb_log_auditoria where num_id_tipo_operacion = '99a9042'
 
 4. **URLs**: Las URLs deben ser completas y comenzar con `https://` (excepto donde se indique lo contrario).
 
-5. **Valores NA**: Cuando se use 'NA', puede ser 'NA' o 'N/A', ambos son aceptados en la mayoría de casos.
+5. **Valores NA**: Cuando se use para indicar que no aplica, se aceptan las siguientes formas: 'NA', 'N/A', o 'No Aplica'.
 
 6. **DataPower**: Esta es una de las validaciones más críticas y con más reglas específicas - prestar especial atención a:
    - No dejar secciones vacías
@@ -647,7 +647,10 @@ select * from admesb.esb_log_auditoria where num_id_tipo_operacion = '99a9042'
 **Solución**: Agregar un nombre descriptivo después de ESB_, por ejemplo: `# ESB_ACE12_MiServicio.`
 
 ### Error: "DataPower existe pero está vacía"
-**Solución**: Agregar una tabla con endpoints o poner "NA" si no aplica
+**Solución**: Agregar una tabla con endpoints o poner una de las siguientes opciones si no aplica:
+- "NA"
+- "N/A"  
+- "No Aplica"
 
 ### Warning: "No se encontró acceso a DataPower"
 **Solución**: Agregar las subsecciones DataPower Interno/Externo con tablas o "NA"
@@ -657,6 +660,21 @@ select * from admesb.esb_log_auditoria where num_id_tipo_operacion = '99a9042'
 
 ### Error: "Grupos de ejecución no coinciden"
 **Solución**: Verificar que los grupos listados en el README coincidan exactamente con los del archivo de configuración central
+
+## Historial de Cambios
+
+### Corrección de validación DataPower con NA (Fecha actual)
+**Problema**: El validador reportaba error "No se encontraron filas de datos en tabla DataPower" aunque el README contenía explícitamente 'NA', 'N/A' o 'No Aplica' como contenido válido.
+
+**Causa**: La función `validate_datapower_table` se ejecutaba incluso cuando la sección contenía solo texto 'NA' sin tabla, esperando encontrar filas de tabla y fallando al no encontrarlas.
+
+**Solución implementada**:
+- Se agregó verificación previa antes de llamar a `validate_datapower_table`
+- Si el contenido de DataPower Externo/Interno es solo 'NA', 'N/A' o 'No Aplica' (sin estructura de tabla), se omite la validación de tabla
+- Se reconocen los tres formatos: 'NA', 'N/A', y 'No Aplica' (con variaciones de espacios)
+- La validación de tabla solo se ejecuta cuando existe una estructura de tabla (encabezado con `|---|`)
+
+**Impacto**: Los usuarios ahora pueden indicar correctamente que DataPower no aplica usando cualquiera de las tres formas aceptadas sin que el validador reporte errores falsos.
 
 ## Mantenimiento
 
