@@ -169,7 +169,8 @@ BOGESERVICIOSWS05_SRV01 BOGESERVICIOSWS05_SRV02
 2. **Contenido no vacío**:
    - Si el encabezado existe, **no puede estar vacío**
    - Como mínimo debe contener la palabra "NA" si no aplica
-   - Puede contener una tabla con ambientes y endpoints
+   - Si contiene una tabla, **debe tener al menos una fila de datos** (no solo el encabezado y separador)
+   - Se reporta **error** si la tabla está vacía o no tiene filas de datos
 
 3. **Validación de URLs**:
    - **CRÍTICO**: Las URLs de DataPower deben comenzar con `https://boc201` 
@@ -204,10 +205,12 @@ NA
 
 ```markdown
 ### DataPower Interno :
+|AMBIENTE|TIPO COMPONENTE|NOMBRE WSP O MPG|DATAPOWER|ENDPOINT|
+|---|---|---|---|---|
 
-### DataPower Externo :
+
 ```
-❌ Error: Encabezados presentes pero vacíos
+❌ Error: Tabla con encabezado pero sin filas de datos
 
 ```markdown
 ### DataPower Interno :
@@ -360,18 +363,27 @@ git\ESB_ACE12_UtilizacionCreditoRotativoPlus\Broker\WSDL\wsdl\UtililzacionCredit
 - Debe contener queries SQL para auditoría y monitoreo
 - No puede estar vacía
 - Los códigos de operación en las queries deben ser **solo números** (sin letras)
+- **No se permiten códigos de operación vacíos** (`num_id_tipo_operacion = ''`)
 
 **Validaciones de códigos de operación**:
-- En formato `where ... = '123'`: el valor debe contener solo dígitos
+- En formato `where ... = '123'`: el valor debe contener solo dígitos y no puede estar vacío
 - En formato `where ... in('123','456')`: todos los valores deben ser solo dígitos
 - ❌ Error si se encuentran letras en los códigos de operación
+- ❌ Error si se encuentra un código de operación vacío (`= ''`)
+
+**Nota sobre subsecciones FILTRAR**: Las subsecciones que comienzan con "Filtrar" (como "Filtrar por Codigo de Operacion") **son validadas** y deben cumplir con las mismas reglas.
 
 **Ejemplo válido**:
 ```sql
 select * from admesb.esb_log_auditoria where num_id_tipo_operacion = '99042'
 ```
 
-**Ejemplo inválido**:
+**Ejemplos inválidos**:
+```sql
+select * from admesb.esb_log_auditoria where num_id_tipo_operacion = ''
+```
+❌ Error: código de operación vacío
+
 ```sql
 select * from admesb.esb_log_auditoria where num_id_tipo_operacion = '99a9042'
 ```
@@ -544,7 +556,7 @@ NA
 ### Ejemplo 4: README con DataPower Vacío (Inválido)
 
 ```markdown
-# ESB_ACE12_MiServicio.
+# ESB_ACE12_ServicioConErrores.
 
 ## INFORMACIÓN DEL SERVICIO
 [contenido...]
@@ -552,14 +564,30 @@ NA
 ## ACCESO AL SERVICIO
 
 ### DataPower Interno :
+|AMBIENTE|TIPO COMPONENTE|NOMBRE WSP O MPG|DATAPOWER|ENDPOINT|
+|---|---|---|---|---|
 
-### Endpoint BUS
-[tabla...]
+
 ```
 
-**Resultado**: ❌ Error - "La subsección 'DataPower Interno' existe pero está vacía"
+**Resultado**: ❌ Error - "No se encontraron filas de datos en tabla DataPower Interno"
 
-### Ejemplo 5: README con URL Incorrecta (Inválido)
+### Ejemplo 5: README con SQL Inválido
+
+```markdown
+## SQL
+Filtrar por Codigo de Operacion
+```
+select * from admesb.esb_log_auditoria where num_id_tipo_operacion = ''
+select * from admesb.esb_log_auditoria where num_id_tipo_operacion = '99a9042'
+```
+```
+
+**Resultado**: 
+- ❌ Error - "Código de operación está vacío (num_id_tipo_operacion = '')"
+- ❌ Error - "Código de operación contiene caracteres no numéricos"
+
+### Ejemplo 6: README con URL Incorrecta (Inválido)
 
 ```markdown
 ### DataPower Interno :
@@ -570,7 +598,7 @@ NA
 
 **Resultado**: ❌ Error - "Los endpoints de DataPower deben comenzar con 'https://boc201' (NO 'https://boc200')"
 
-### Ejemplo 6: README Sin Información Descriptiva
+### Ejemplo 7: README Sin Información Descriptiva
 
 ```markdown
 # ESB_ACE12_MiServicio.
