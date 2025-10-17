@@ -168,7 +168,10 @@ BOGESERVICIOSWS05_SRV01 BOGESERVICIOSWS05_SRV02
 
 2. **Contenido no vacío**:
    - Si el encabezado existe, **no puede estar vacío**
-   - Como mínimo debe contener la palabra "NA" si no aplica
+   - Como mínimo debe contener una de las siguientes formas si no aplica:
+     - "NA"
+     - "N/A"
+     - "No Aplica"
    - Si contiene una tabla, **debe tener al menos una fila de datos** (no solo el encabezado y separador)
    - Se reporta **error** si la tabla está vacía o no tiene filas de datos
 
@@ -191,6 +194,16 @@ BOGESERVICIOSWS05_SRV01 BOGESERVICIOSWS05_SRV02
 ```markdown
 ### DataPower Interno :
 NA
+```
+
+```markdown
+### DataPower Interno :
+N/A
+```
+
+```markdown
+### DataPower Interno :
+No Aplica
 ```
 
 ```markdown
