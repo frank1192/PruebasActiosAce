@@ -277,7 +277,8 @@ jobs:
               ')
               
               if [ -z "$data_rows" ]; then
-                echo "::notice title=Validación de README.md::No se encontraron filas de datos en tabla $section_name"
+                echo "::error title=Validación de README.md::No se encontraron filas de datos en tabla $section_name. Debe contener al menos una fila con datos o valores 'NA'."
+                failed=1
                 return 0
               fi
               
@@ -689,10 +690,10 @@ jobs:
             else
               echo "::notice title=Validación de README.md::La sección 'SQL' contiene contenido"
               
-              # Identificar y reportar subsecciones FILTRAR (pero no validarlas)
+              # Identificar y reportar subsecciones FILTRAR
               filtrar_sections=$(echo "$sql_content" | grep -i '^FILTRAR' || true)
               if [ -n "$filtrar_sections" ]; then
-                echo "::notice title=Validación de README.md::Se encontraron subsecciones FILTRAR en SQL (estas subsecciones se omiten de la validación):"
+                echo "::notice title=Validación de README.md::Se encontraron subsecciones FILTRAR en SQL:"
                 echo "$filtrar_sections" | while IFS= read -r filtrar_line; do
                   echo "  - $filtrar_line"
                 done
@@ -700,7 +701,7 @@ jobs:
               
               # 2. Extraer queries SQL (eliminar bloques de código markdown)
               # Solo extraer líneas que tengan códigos de operación (where ... = '...' o in('...'))
-              sql_queries=$(echo "$sql_content" | sed '/^```/d' | grep -iE "where.*=\s*'[^']+'" || true)
+              sql_queries=$(echo "$sql_content" | sed '/^```/d' | grep -iE "where.*=\s*'[^']*'" || true)
               sql_queries_in=$(echo "$sql_content" | sed '/^```/d' | grep -iE "where.*in\s*\(" || true)
               sql_queries=$(echo -e "$sql_queries\n$sql_queries_in" | grep -v '^[[:space:]]*$')
               
@@ -721,8 +722,12 @@ jobs:
                   if echo "$line" | grep -Piq "=\s*'[^']*'"; then
                     # Extraer el valor entre comillas después del =
                     value=$(echo "$line" | grep -Po "=\s*'\K[^']+" | head -1)
+                    # Verificar que el valor no esté vacío
+                    if [ -z "$value" ]; then
+                      echo "::error title=Validación de README.md::Código de operación está vacío (num_id_tipo_operacion = ''). Debe contener un código numérico válido: $line"
+                      sql_validation_failed=1
                     # Verificar que el valor contenga solo dígitos (no letras)
-                    if ! echo "$value" | grep -Pq '^[0-9]+$'; then
+                    elif ! echo "$value" | grep -Pq '^[0-9]+$'; then
                       echo "::error title=Validación de README.md::Código de operación contiene caracteres no numéricos. Solo se permiten números: $line"
                       sql_validation_failed=1
                     fi
