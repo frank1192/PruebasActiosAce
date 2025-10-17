@@ -166,14 +166,16 @@ BOGESERVICIOSWS05_SRV01 BOGESERVICIOSWS05_SRV02
    - Debe existir al menos una de las subsecciones: `### DataPower Interno :` o `### DataPower Externo :`
    - Si ninguna está presente, se lanza un **warning** (no error) recomendando indicar explícitamente con 'NA'
 
-2. **Contenido no vacío**:
-   - Si el encabezado existe, **no puede estar vacío**
-   - Como mínimo debe contener una de las siguientes formas si no aplica:
+2. **Contenido vacío permitido**:
+   - Si el encabezado existe, **puede estar vacío** (sin contenido)
+   - El contenido puede ser:
+     - Vacío (sin ningún texto entre el encabezado y la siguiente sección)
      - "NA"
      - "N/A"
      - "No Aplica"
+     - Una tabla con endpoints
    - Si contiene una tabla, **debe tener al menos una fila de datos** (no solo el encabezado y separador)
-   - Se reporta **error** si la tabla está vacía o no tiene filas de datos
+   - Se reporta **notice** (no error) si la subsección está vacía
 
 3. **Validación de URLs**:
    - **CRÍTICO**: Las URLs de DataPower deben comenzar con `https://boc201` 
@@ -213,6 +215,16 @@ NA
 ### DataPower Interno :
 NA
 ```
+
+**Ejemplos válidos adicionales**:
+
+```markdown
+### DataPower Externo :
+
+### DataPower Interno :
+
+```
+✅ Válido: Ambas subsecciones vacías (se permite)
 
 **Ejemplos inválidos de DataPower**:
 
@@ -460,10 +472,12 @@ select * from admesb.esb_log_auditoria where num_id_tipo_operacion = '99a9042'
 | Sin secciones DataPower | Ninguna subsección presente | ⚠️ Warning - Recomendar indicar NA explícitamente |
 | Solo DataPower Interno | Con tabla de endpoints | ✅ Válido |
 | Solo DataPower Externo | Con tabla de endpoints | ✅ Válido |
-| DataPower Interno | Encabezado presente, contenido vacío | ❌ Error |
+| DataPower Interno | Encabezado presente, contenido vacío | ✅ Válido (notice) |
+| DataPower Externo | Encabezado presente, contenido vacío | ✅ Válido (notice) |
 | DataPower con NA | Encabezado presente, contenido "NA" | ✅ Válido |
+| Ambas secciones | Ambas vacías | ✅ Válido |
 | Ambas secciones | Ambas con NA | ✅ Válido |
-| Ambas secciones | Una con tabla, otra vacía | ❌ Error |
+| Ambas secciones | Una con tabla, otra vacía | ✅ Válido |
 | URL con boc200 | Cualquier URL con https://boc200 | ❌ Error |
 | URL con boc201 | URLs correctas con https://boc201 | ✅ Válido |
 
@@ -646,11 +660,12 @@ select * from admesb.esb_log_auditoria where num_id_tipo_operacion = '99a9042'
 ### Error: "Título no puede ser solo ESB_"
 **Solución**: Agregar un nombre descriptivo después de ESB_, por ejemplo: `# ESB_ACE12_MiServicio.`
 
-### Error: "DataPower existe pero está vacía"
-**Solución**: Agregar una tabla con endpoints o poner una de las siguientes opciones si no aplica:
-- "NA"
-- "N/A"  
-- "No Aplica"
+### Notice: "DataPower está vacía"
+**Comportamiento**: Las subsecciones de DataPower vacías ahora son permitidas y solo generan un mensaje informativo (notice), no un error. 
+**Opciones válidas**:
+- Dejar la subsección vacía (sin contenido)
+- Agregar "NA", "N/A" o "No Aplica"
+- Agregar una tabla con endpoints
 
 ### Warning: "No se encontró acceso a DataPower"
 **Solución**: Agregar las subsecciones DataPower Interno/Externo con tablas o "NA"
@@ -663,7 +678,25 @@ select * from admesb.esb_log_auditoria where num_id_tipo_operacion = '99a9042'
 
 ## Historial de Cambios
 
-### Corrección de validación DataPower con NA (Fecha actual)
+### Permitir subsecciones DataPower vacías (2025-10-17)
+**Problema**: El validador fallaba con exit code 1 cuando las subsecciones de DataPower (Externo o Interno) estaban completamente vacías, causando que el flujo de GitHub Actions terminara abruptamente.
+
+**Causa**: Las líneas 206-208 y 224-227 del workflow reportaban un error fatal (`::error`) y establecían `failed=1` cuando una subsección de DataPower tenía el encabezado pero sin contenido.
+
+**Solución implementada**:
+- Cambiar `::error` por `::notice` cuando una subsección de DataPower está vacía
+- Eliminar `failed=1` de estas validaciones para que no causen exit code 1
+- El flujo ahora continúa normalmente reportando solo un mensaje informativo
+
+**Comportamiento nuevo**:
+- Subsecciones DataPower vacías: ✅ Válido (muestra notice informativo)
+- Subsecciones DataPower con "NA": ✅ Válido (muestra notice)
+- Subsecciones DataPower con tabla: ✅ Válido (se valida la tabla)
+- Sin ninguna subsección DataPower: ⚠️ Warning (recomienda agregar subsecciones)
+
+**Impacto**: Los usuarios ahora pueden dejar las subsecciones de DataPower vacías sin que el workflow falle. Esto es útil cuando el servicio está en desarrollo o cuando DataPower no aplica pero se quiere mantener la estructura del README.
+
+### Corrección de validación DataPower con NA (Anterior)
 **Problema**: El validador reportaba error "No se encontraron filas de datos en tabla DataPower" aunque el README contenía explícitamente 'NA', 'N/A' o 'No Aplica' como contenido válido.
 
 **Causa**: La función `validate_datapower_table` se ejecutaba incluso cuando la sección contenía solo texto 'NA' sin tabla, esperando encontrar filas de tabla y fallando al no encontrarlas.
