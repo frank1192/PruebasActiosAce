@@ -58,9 +58,32 @@ jobs:
           
           # 1. Validacion de la Plantilla - Validando título principal - OK
             echo "✔️ Validando título principal del Servicio '# ESB_...'"
-            grep -Pq '^# ESB_[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)?\.$' README.md \
-              && echo "::notice title=Validación de README.md::Título principal encontrado" \
-              || { echo "::error title=Validación de README.md::Falta el título principal '# ESB_...'"; failed=1; }
+            
+            # Verificar que existe el título con formato ESB_
+            if grep -Pq '^# ESB_' README.md; then
+              # Extraer el título
+              titulo=$(grep -m1 '^# ESB_' README.md | sed 's/^# //' | sed 's/\.$//')
+              
+              # Verificar que hay contenido después de ESB_
+              if echo "$titulo" | grep -Pq '^ESB_[A-Za-z0-9_-]+'; then
+                # Extraer la parte después de ESB_
+                contenido_despues=$(echo "$titulo" | sed 's/^ESB_//')
+                
+                # Verificar que no está vacío y no es solo guiones bajos o guiones
+                if [ -z "$contenido_despues" ] || echo "$contenido_despues" | grep -Pq '^[_-]+$'; then
+                  echo "::error title=Validación de README.md::El título no puede ser solo 'ESB_' o 'ESB_' seguido solo de guiones. Debe agregar un nombre descriptivo del repositorio después de ESB_"
+                  failed=1
+                else
+                  echo "::notice title=Validación de README.md::Título principal encontrado y válido: $titulo"
+                fi
+              else
+                echo "::error title=Validación de README.md::El título debe comenzar con 'ESB_' seguido de un nombre descriptivo"
+                failed=1
+              fi
+            else
+              echo "::error title=Validación de README.md::Falta el título principal '# ESB_...'"
+              failed=1
+            fi
 
           # 2. Validacion de la Plantilla - INFORMACIÓN DEL SERVICIO - OK 
             echo "✔️ Validando sección '## INFORMACIÓN DEL SERVICIO'"
@@ -69,14 +92,14 @@ jobs:
               if grep -Pq '^## INFORMACIÓN DEL SERVICIO' README.md; then
                 echo "::notice title=Validación de README.md::Encabezado '## INFORMACIÓN DEL SERVICIO' encontrado"
 
-                # Extrae contenido debajo del encabezado hasta el siguiente encabezado
-                contenido=$(awk '/^## INFORMACIÓN DEL SERVICIO/{flag=1; next} /^## /{flag=0} flag && NF' README.md)
+                # Extrae contenido debajo del encabezado hasta la primera subsección (###)
+                contenido_antes_subseccion=$(awk '/^## INFORMACIÓN DEL SERVICIO/{flag=1; next} /^### /{flag=0} flag && NF' README.md)
 
-                if [ -z "$contenido" ]; then
-                  echo "::error title=Validación de README.md::La sección '## INFORMACIÓN DEL SERVICIO' está vacía. Agrega contenido relevante debajo del encabezado."
+                if [ -z "$contenido_antes_subseccion" ]; then
+                  echo "::error title=Validación de README.md::La sección '## INFORMACIÓN DEL SERVICIO' no contiene información descriptiva antes de las subsecciones. Debe agregar una descripción del servicio antes de '### Último despliegue'."
                   failed=1
                 else
-                  echo "::notice title=Validación de README.md::La sección '## INFORMACIÓN DEL SERVICIO' contiene contenido"
+                  echo "::notice title=Validación de README.md::La sección '## INFORMACIÓN DEL SERVICIO' contiene información descriptiva"
                 fi
               else
                 echo "::error title=Validación de README.md::No se encontró el encabezado '## INFORMACIÓN DEL SERVICIO'"
@@ -178,10 +201,16 @@ jobs:
               # Extraer contenido de la subsección (hasta el siguiente encabezado ###)
               externo_content=$(awk '/^### DataPower Externo :/{flag=1; next} /^### / || /^## /{flag=0} flag' README.md)
               # Verificar si tiene contenido real (no solo espacios/saltos de línea)
-              if [ -z "$(echo "$externo_content" | grep -v '^[[:space:]]*$')" ]; then
+              externo_content_clean=$(echo "$externo_content" | grep -v '^[[:space:]]*$')
+              if [ -z "$externo_content_clean" ]; then
                 externo_empty=1
-                echo "::error title=Validación de README.md::La subsección 'DataPower Externo' existe pero está vacía. Debe contener una tabla con datos o ser eliminada."
+                echo "::error title=Validación de README.md::La subsección 'DataPower Externo' existe pero está vacía. Debe contener una tabla con datos o al menos 'NA' si no aplica."
                 failed=1
+              else
+                # Verificar si solo contiene "NA" (válido)
+                if echo "$externo_content_clean" | grep -Piq '^\s*N\s*/?\s*A\s*$'; then
+                  echo "::notice title=Validación de README.md::La subsección 'DataPower Externo' contiene 'NA' (válido)"
+                fi
               fi
             fi
             
@@ -191,20 +220,26 @@ jobs:
               # Extraer contenido de la subsección (hasta el siguiente encabezado ###)
               interno_content=$(awk '/^### DataPower Interno :/{flag=1; next} /^### / || /^## /{flag=0} flag' README.md)
               # Verificar si tiene contenido real (no solo espacios/saltos de línea)
-              if [ -z "$(echo "$interno_content" | grep -v '^[[:space:]]*$')" ]; then
+              interno_content_clean=$(echo "$interno_content" | grep -v '^[[:space:]]*$')
+              if [ -z "$interno_content_clean" ]; then
                 interno_empty=1
-                echo "::error title=Validación de README.md::La subsección 'DataPower Interno' existe pero está vacía. Debe contener una tabla con datos o ser eliminada."
+                echo "::error title=Validación de README.md::La subsección 'DataPower Interno' existe pero está vacía. Debe contener una tabla con datos o al menos 'NA' si no aplica."
                 failed=1
+              else
+                # Verificar si solo contiene "NA" (válido)
+                if echo "$interno_content_clean" | grep -Piq '^\s*N\s*/?\s*A\s*$'; then
+                  echo "::notice title=Validación de README.md::La subsección 'DataPower Interno' contiene 'NA' (válido)"
+                fi
               fi
             fi
             
+            # Validar que exista al menos uno de los dos
             if [ $has_externo -eq 0 ] && [ $has_interno -eq 0 ]; then
-              echo "::error title=Validación de README.md::Falta subsección DataPower Externo o Interno"
-              failed=1
+              echo "::warning title=Validación de README.md::No se encontró acceso a DataPower (ni Interno ni Externo). Si el servicio no requiere acceso a DataPower, se recomienda indicarlo explícitamente en el README agregando las subsecciones con contenido 'NA'."
             elif [ $has_externo -eq 0 ]; then
-              echo "::warning title=Validación de README.md::Recomendación: No se encontró subsección 'DataPower Externo'. Si el servicio requiere apuntamiento externo, agregarlo."
+              echo "::notice title=Validación de README.md::Solo se encontró 'DataPower Interno' (válido)"
             elif [ $has_interno -eq 0 ]; then
-              echo "::warning title=Validación de README.md::Recomendación: No se encontró subsección 'DataPower Interno'. Si el servicio requiere apuntamiento interno, agregarlo."
+              echo "::notice title=Validación de README.md::Solo se encontró 'DataPower Externo' (válido)"
             else
               echo "::notice title=Validación de README.md::Ambas subsecciones DataPower (Externo e Interno) encontradas"
             fi
@@ -275,6 +310,12 @@ jobs:
                   # Extraer columnas para validación
                   local col_datapower=$(echo "$row" | cut -d'|' -f5 | xargs)
                   local col_endpoint=$(echo "$row" | cut -d'|' -f6 | xargs)
+                  
+                  # Validar que el endpoint NO comience con https://boc200 (debe ser boc201)
+                  if [[ "$col_endpoint" =~ ^https://boc200 ]]; then
+                    echo "::error title=Validación de README.md::Error en $section_name: Los endpoints de DataPower deben comenzar con 'https://boc201' (NO 'https://boc200'). Encontrado: $col_endpoint"
+                    failed=1
+                  fi
                   
                   # Validar apuntamientos según ambiente
                   if [[ "$ambiente" =~ ^DESARROLLO ]] && [ "$col_datapower" != "NA" ]; then
