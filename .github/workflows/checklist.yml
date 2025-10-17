@@ -312,6 +312,16 @@ jobs:
                   local col_datapower=$(echo "$row" | cut -d'|' -f5 | xargs)
                   local col_endpoint=$(echo "$row" | cut -d'|' -f6 | xargs)
                   
+                  # Validar que las celdas no estén vacías
+                  if [ -z "$col_datapower" ]; then
+                    echo "::error title=Validación de README.md::Error en $section_name ($ambiente): La columna DATAPOWER está vacía. Si no hay valor, debe colocarse 'NA'."
+                    failed=1
+                  fi
+                  if [ -z "$col_endpoint" ]; then
+                    echo "::error title=Validación de README.md::Error en $section_name ($ambiente): La columna ENDPOINT está vacía. Si no hay valor, debe colocarse 'NA'."
+                    failed=1
+                  fi
+                  
                   # Validar que el endpoint NO comience con https://boc200 (debe ser boc201)
                   if [[ "$col_endpoint" =~ ^https://boc200 ]]; then
                     echo "::error title=Validación de README.md::Error en $section_name: Los endpoints de DataPower deben comenzar con 'https://boc201' (NO 'https://boc200'). Encontrado: $col_endpoint"
@@ -319,7 +329,7 @@ jobs:
                   fi
                   
                   # Validar apuntamientos según ambiente
-                  if [[ "$ambiente" =~ ^DESARROLLO ]] && [ "$col_datapower" != "NA" ]; then
+                  if [[ "$ambiente" =~ ^DESARROLLO ]] && [ "$col_datapower" != "NA" ] && [ -n "$col_datapower" ]; then
                     if ! [[ "$col_datapower" =~ ^BODP.*DEV$ ]]; then
                       echo "::error title=Validación de README.md::Error en $section_name: Datapower en DESARROLLO debe comenzar con BODP y terminar con DEV. Encontrado: $col_datapower"
                       failed=1
@@ -328,7 +338,7 @@ jobs:
                       echo "::error title=Validación de README.md::Error en $section_name: Endpoint en DESARROLLO debe comenzar con https://boc201.des.app.bancodeoccidente.net Encontrado: $col_endpoint"
                       failed=1
                     fi
-                  elif [[ "$ambiente" =~ ^CALIDAD ]] && [ "$col_datapower" != "NA" ]; then
+                  elif [[ "$ambiente" =~ ^CALIDAD ]] && [ "$col_datapower" != "NA" ] && [ -n "$col_datapower" ]; then
                     if ! [[ "$col_datapower" =~ ^BODP.*QAS$ ]]; then
                       echo "::error title=Validación de README.md::Error en $section_name: Datapower en CALIDAD debe comenzar con BODP y terminar con QAS. Encontrado: $col_datapower"
                       failed=1
@@ -344,7 +354,7 @@ jobs:
                         failed=1
                       fi
                     fi
-                  elif [[ "$ambiente" =~ ^PRODUCCION ]] && [ "$col_datapower" != "NA" ]; then
+                  elif [[ "$ambiente" =~ ^PRODUCCION ]] && [ "$col_datapower" != "NA" ] && [ -n "$col_datapower" ]; then
                     if ! [[ "$col_datapower" =~ ^BODP.*PRD$ ]]; then
                       echo "::error title=Validación de README.md::Error en $section_name: Datapower en PRODUCCION debe comenzar con BODP y terminar con PRD. Encontrado: $col_datapower"
                       failed=1
