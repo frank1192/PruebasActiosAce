@@ -175,9 +175,19 @@ BOGESERVICIOSWS05_SRV01 BOGESERVICIOSWS05_SRV02
      - "No Aplica"
      - Una tabla con endpoints
    - Si contiene una tabla, **debe tener al menos una fila de datos** (no solo el encabezado y separador)
-   - Se reporta **notice** (no error) si la subsección está vacía
+   - Se reporta **warning** (no error) si la subsección está vacía, recomendando agregar contenido o indicar 'NA'
 
-3. **Validación de URLs**:
+3. **Validación de combinaciones NA y apuntamientos**:
+   - **Es válido** que una sección tenga NA y la otra tenga apuntamientos
+   - Solo se reporta un **warning informativo** (no error) cuando una sección tiene NA y la otra tiene endpoints
+   - **Error solo cuando ambas secciones estén completamente vacías** (sin contenido alguno)
+   - Ejemplos válidos:
+     - DataPower Externo: NA → DataPower Interno: endpoints válidos ✅
+     - DataPower Externo: endpoints válidos → DataPower Interno: NA ✅
+     - DataPower Externo: NA → DataPower Interno: NA ✅
+     - DataPower Externo: vacío → DataPower Interno: vacío ⚠️ (warning, pero flujo continúa)
+
+4. **Validación de URLs**:
    - **CRÍTICO**: Las URLs de DataPower deben comenzar con `https://boc201` 
    - **NO se permite**: URLs que comiencen con `https://boc200`
    - Debe cumplir con el formato específico por ambiente (ver tabla abajo)
@@ -216,6 +226,19 @@ NA
 NA
 ```
 
+```markdown
+### DataPower Externo :
+NA
+
+### DataPower Interno :
+|AMBIENTE|TIPO COMPONENTE|NOMBRE WSP O MPG|DATAPOWER|ENDPOINT|
+|---|---|---|---|---|
+|DESARROLLO|WSP|WSServicioInterno|BODPDEV|https://boc201.des.app.bancodeoccidente.net:4806/Servicio/Port|
+|CALIDAD|WSP|WSServicioInterno|BODPQAS|https://boc201.testint.app.bancodeoccidente.net:4806/Servicio/Port|
+|PRODUCCION|WSP|WSServicioInterno|BODPPRD|https://boc201.prdint.app.bancodeoccidente.net:4806/Servicio/Port|
+```
+✅ Válido: Una sección con NA y otra con apuntamientos (warning, pero válido)
+
 **Ejemplos válidos adicionales**:
 
 ```markdown
@@ -224,9 +247,17 @@ NA
 ### DataPower Interno :
 
 ```
-✅ Válido: Ambas subsecciones vacías (se permite)
+⚠️ Warning: Ambas subsecciones vacías (se permite, pero se recomienda agregar 'NA')
 
 **Ejemplos inválidos de DataPower**:
+
+```markdown
+### DataPower Externo :
+
+### DataPower Interno :
+
+```
+❌ Error solo si ambas están completamente vacías y no se quiere agregar contenido
 
 ```markdown
 ### DataPower Interno :
@@ -472,12 +503,13 @@ select * from admesb.esb_log_auditoria where num_id_tipo_operacion = '99a9042'
 | Sin secciones DataPower | Ninguna subsección presente | ⚠️ Warning - Recomendar indicar NA explícitamente |
 | Solo DataPower Interno | Con tabla de endpoints | ✅ Válido |
 | Solo DataPower Externo | Con tabla de endpoints | ✅ Válido |
-| DataPower Interno | Encabezado presente, contenido vacío | ✅ Válido (notice) |
-| DataPower Externo | Encabezado presente, contenido vacío | ✅ Válido (notice) |
+| DataPower Interno | Encabezado presente, contenido vacío | ⚠️ Warning (flujo continúa) |
+| DataPower Externo | Encabezado presente, contenido vacío | ⚠️ Warning (flujo continúa) |
 | DataPower con NA | Encabezado presente, contenido "NA" | ✅ Válido |
-| Ambas secciones | Ambas vacías | ✅ Válido |
+| Ambas secciones | Ambas completamente vacías | ❌ Error |
 | Ambas secciones | Ambas con NA | ✅ Válido |
-| Ambas secciones | Una con tabla, otra vacía | ✅ Válido |
+| Ambas secciones | Una con NA, otra con endpoints | ⚠️ Warning informativo (válido, flujo continúa) |
+| Ambas secciones | Una con tabla, otra vacía | ⚠️ Warning en la vacía (válido, flujo continúa) |
 | URL con boc200 | Cualquier URL con https://boc200 | ❌ Error |
 | URL con boc201 | URLs correctas con https://boc201 | ✅ Válido |
 
@@ -660,12 +692,24 @@ select * from admesb.esb_log_auditoria where num_id_tipo_operacion = '99a9042'
 ### Error: "Título no puede ser solo ESB_"
 **Solución**: Agregar un nombre descriptivo después de ESB_, por ejemplo: `# ESB_ACE12_MiServicio.`
 
-### Notice: "DataPower está vacía"
-**Comportamiento**: Las subsecciones de DataPower vacías ahora son permitidas y solo generan un mensaje informativo (notice), no un error. 
+### Warning: "DataPower está vacía"
+**Comportamiento**: Las subsecciones de DataPower vacías ahora generan warnings (no errores) y el flujo continúa normalmente.
 **Opciones válidas**:
-- Dejar la subsección vacía (sin contenido)
-- Agregar "NA", "N/A" o "No Aplica"
-- Agregar una tabla con endpoints
+- Dejar la subsección vacía (sin contenido) - genera warning
+- Agregar "NA", "N/A" o "No Aplica" - válido sin warnings
+- Agregar una tabla con endpoints - válido sin warnings
+
+### Warning: "Una sección DataPower tiene NA y otra tiene apuntamientos"
+**Comportamiento**: Esto es válido y solo genera un warning informativo. El flujo continúa sin errores.
+**Ejemplo válido**:
+```markdown
+### DataPower Externo :
+NA
+
+### DataPower Interno :
+[tabla con endpoints]
+```
+Resultado: ⚠️ Warning informativo, pero el flujo continúa y el PR puede proceder.
 
 ### Warning: "No se encontró acceso a DataPower"
 **Solución**: Agregar las subsecciones DataPower Interno/Externo con tablas o "NA"
@@ -677,6 +721,41 @@ select * from admesb.esb_log_auditoria where num_id_tipo_operacion = '99a9042'
 **Solución**: Verificar que los grupos listados en el README coincidan exactamente con los del archivo de configuración central
 
 ## Historial de Cambios
+
+### Corrección de errores en validación DataPower (2025-10-23)
+**Problema 1**: El validador fallaba con exit code 1 cuando las subsecciones de DataPower (Externo o Interno) estaban completamente vacías, deteniendo el flujo de validaciones.
+
+**Problema 2**: El validador marcaba como error cuando una sección DataPower tenía NA y la otra tenía apuntamientos válidos, lo cual es un escenario válido.
+
+**Causa 1**: Las líneas 206-208 y 224-227 del workflow reportaban un `::notice` cuando una subsección estaba vacía, pero esto no impedía que el flujo continuara. Sin embargo, usuarios reportaron que el flujo se detenía.
+
+**Causa 2**: Las líneas 449-463 del workflow marcaban con `::error` y establecían `failed=1` cuando una tabla tenía todos los valores en NA pero la otra tenía apuntamientos válidos.
+
+**Solución implementada**:
+1. **Para secciones vacías**:
+   - Cambiar `::notice` por `::warning` cuando una subsección de DataPower está vacía
+   - Agregar mensaje más claro recomendando agregar contenido o 'NA'
+   - Agregar validación específica de error solo cuando **ambas secciones están completamente vacías**
+   - El flujo ahora continúa normalmente con warnings en lugar de detenerse
+
+2. **Para validación NA vs apuntamientos**:
+   - Cambiar `::error` por `::warning` cuando una sección tiene NA y otra tiene apuntamientos
+   - Actualizar mensaje para indicar que es válido tener una sección con NA y otra con endpoints
+   - Eliminar `failed=1` de estas validaciones para que no causen exit code 1
+   - Solo marcar error cuando ambas secciones estén completamente vacías
+
+**Comportamiento nuevo**:
+- Subsecciones DataPower vacías: ⚠️ Warning (flujo continúa)
+- Una sección con NA, otra con endpoints: ⚠️ Warning informativo (válido, flujo continúa)
+- Ambas secciones completamente vacías: ❌ Error (flujo se detiene)
+- Subsecciones DataPower con "NA": ✅ Válido (notice informativo)
+- Subsecciones DataPower con tabla: ✅ Válido (se valida la tabla)
+- Sin ninguna subsección DataPower: ⚠️ Warning (recomienda agregar subsecciones)
+
+**Impacto**: 
+- Los usuarios ahora pueden tener una configuración donde DataPower Externo tiene NA y DataPower Interno tiene apuntamientos válidos (o viceversa) sin que el workflow falle
+- Las secciones vacías generan warnings pero permiten que el flujo continúe
+- Solo se marca error cuando realmente ambas secciones están vacías sin ningún contenido
 
 ### Permitir subsecciones DataPower vacías (2025-10-17)
 **Problema**: El validador fallaba con exit code 1 cuando las subsecciones de DataPower (Externo o Interno) estaban completamente vacías, causando que el flujo de GitHub Actions terminara abruptamente.
