@@ -678,14 +678,19 @@ select * from admesb.esb_log_auditoria where num_id_tipo_operacion = '99a9042'
 
 ## Historial de Cambios
 
-### Permitir subsecciones DataPower vacías (2025-10-17)
-**Problema**: El validador fallaba con exit code 1 cuando las subsecciones de DataPower (Externo o Interno) estaban completamente vacías, causando que el flujo de GitHub Actions terminara abruptamente.
+### Corrección de validación DataPower vacía que causaba exit code 1 (2025-10-23)
+**Problema**: El validador fallaba con exit code 1 cuando las subsecciones de DataPower (Externo o Interno) estaban completamente vacías, causando que el flujo de GitHub Actions terminara abruptamente con el error:
+```
+✔️ Validando subsecciones DataPower Externo/Interno
+Error: Process completed with exit code 1.
+```
 
 **Causa**: Las líneas 206-208 y 224-227 del workflow reportaban un error fatal (`::error`) y establecían `failed=1` cuando una subsección de DataPower tenía el encabezado pero sin contenido.
 
 **Solución implementada**:
 - Cambiar `::error` por `::notice` cuando una subsección de DataPower está vacía
 - Eliminar `failed=1` de estas validaciones para que no causen exit code 1
+- Actualizar el mensaje para ser más informativo: "La subsección 'DataPower Externo/Interno' está vacía. En caso de que no tenga apuntamientos escribir NA, N/A, o No Aplica."
 - El flujo ahora continúa normalmente reportando solo un mensaje informativo
 
 **Comportamiento nuevo**:
@@ -694,7 +699,10 @@ select * from admesb.esb_log_auditoria where num_id_tipo_operacion = '99a9042'
 - Subsecciones DataPower con tabla: ✅ Válido (se valida la tabla)
 - Sin ninguna subsección DataPower: ⚠️ Warning (recomienda agregar subsecciones)
 
-**Impacto**: Los usuarios ahora pueden dejar las subsecciones de DataPower vacías sin que el workflow falle. Esto es útil cuando el servicio está en desarrollo o cuando DataPower no aplica pero se quiere mantener la estructura del README.
+**Impacto**: Los usuarios ahora pueden dejar las subsecciones de DataPower vacías sin que el workflow falle. Esto es útil cuando el servicio está en desarrollo o cuando DataPower no aplica pero se quiere mantener la estructura del README. El workflow continúa con las demás validaciones en lugar de detenerse.
+
+### Permitir subsecciones DataPower vacías (2025-10-17)
+**Nota**: Este cambio anterior tenía el problema de que aún causaba exit code 1. La corrección definitiva se implementó el 2025-10-23 (ver arriba).
 
 ### Corrección de validación DataPower con NA (Anterior)
 **Problema**: El validador reportaba error "No se encontraron filas de datos en tabla DataPower" aunque el README contenía explícitamente 'NA', 'N/A' o 'No Aplica' como contenido válido.
