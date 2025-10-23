@@ -678,7 +678,7 @@ select * from admesb.esb_log_auditoria where num_id_tipo_operacion = '99a9042'
 
 ## Historial de Cambios
 
-### Permitir subsecciones DataPower vacías (2025-10-17)
+### Permitir subsecciones DataPower vacías (2025-10-23)
 **Problema**: El validador fallaba con exit code 1 cuando las subsecciones de DataPower (Externo o Interno) estaban completamente vacías, causando que el flujo de GitHub Actions terminara abruptamente.
 
 **Causa**: Las líneas 206-208 y 224-227 del workflow reportaban un error fatal (`::error`) y establecían `failed=1` cuando una subsección de DataPower tenía el encabezado pero sin contenido.
@@ -695,6 +695,8 @@ select * from admesb.esb_log_auditoria where num_id_tipo_operacion = '99a9042'
 - Sin ninguna subsección DataPower: ⚠️ Warning (recomienda agregar subsecciones)
 
 **Impacto**: Los usuarios ahora pueden dejar las subsecciones de DataPower vacías sin que el workflow falle. Esto es útil cuando el servicio está en desarrollo o cuando DataPower no aplica pero se quiere mantener la estructura del README.
+
+**Estado**: ✅ **Implementado y verificado** - El código del workflow ha sido actualizado correctamente y probado con éxito.
 
 ### Corrección de validación DataPower con NA (Anterior)
 **Problema**: El validador reportaba error "No se encontraron filas de datos en tabla DataPower" aunque el README contenía explícitamente 'NA', 'N/A' o 'No Aplica' como contenido válido.
