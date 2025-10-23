@@ -204,8 +204,7 @@ jobs:
               externo_content_clean=$(echo "$externo_content" | grep -v '^[[:space:]]*$')
               if [ -z "$externo_content_clean" ]; then
                 externo_empty=1
-                echo "::error title=Validación de README.md::La subsección 'DataPower Externo' está vacía. Debe contener al menos una tabla con datos o 'NA'."
-                failed=1
+                echo "::notice title=Validación de README.md::La subsección 'DataPower Externo' está vacía. Se permite que esté vacía o contenga 'NA'."
               else
                 # Verificar si solo contiene "NA" (válido)
                 if echo "$externo_content_clean" | grep -Piq '^\s*N\s*/?\s*A\s*$'; then
@@ -223,8 +222,7 @@ jobs:
               interno_content_clean=$(echo "$interno_content" | grep -v '^[[:space:]]*$')
               if [ -z "$interno_content_clean" ]; then
                 interno_empty=1
-                echo "::error title=Validación de README.md::La subsección 'DataPower Interno' está vacía. Debe contener al menos una tabla con datos o 'NA'."
-                failed=1
+                echo "::notice title=Validación de README.md::La subsección 'DataPower Interno' está vacía. Se permite que esté vacía o contenga 'NA'."
               else
                 # Verificar si solo contiene "NA" (válido)
                 if echo "$interno_content_clean" | grep -Piq '^\s*N\s*/?\s*A\s*$'; then
