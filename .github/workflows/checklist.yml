@@ -204,7 +204,8 @@ jobs:
               externo_content_clean=$(echo "$externo_content" | grep -v '^[[:space:]]*$')
               if [ -z "$externo_content_clean" ]; then
                 externo_empty=1
-                echo "::notice title=Validación de README.md::La subsección 'DataPower Externo' está vacía (se permite subsección vacía)."
+                echo "::error title=Validación de README.md::La subsección 'DataPower Externo' está vacía. Debe contener al menos una tabla con datos o 'NA'."
+                failed=1
               else
                 # Verificar si solo contiene "NA" (válido)
                 if echo "$externo_content_clean" | grep -Piq '^\s*N\s*/?\s*A\s*$'; then
@@ -222,7 +223,8 @@ jobs:
               interno_content_clean=$(echo "$interno_content" | grep -v '^[[:space:]]*$')
               if [ -z "$interno_content_clean" ]; then
                 interno_empty=1
-                echo "::notice title=Validación de README.md::La subsección 'DataPower Interno' está vacía (se permite subsección vacía)."
+                echo "::error title=Validación de README.md::La subsección 'DataPower Interno' está vacía. Debe contener al menos una tabla con datos o 'NA'."
+                failed=1
               else
                 # Verificar si solo contiene "NA" (válido)
                 if echo "$interno_content_clean" | grep -Piq '^\s*N\s*/?\s*A\s*$'; then
@@ -445,20 +447,16 @@ jobs:
               fi
             fi
             
-            # Validar que si una tabla tiene todo N/A, ambas deben tener todo N/A
+            # Validación de combinaciones de DataPower (NA y datos son válidos en ambas direcciones)
             if [ $has_interno -eq 1 ] && [ $has_externo -eq 1 ] && [ $interno_empty -eq 0 ] && [ $externo_empty -eq 0 ]; then
               # Considerar "just_na" (sin tabla) como equivalente a all_na (tabla con todos N/A)
               interno_is_na=$((interno_all_na + interno_just_na))
               externo_is_na=$((externo_all_na + externo_just_na))
               
-              if [ $interno_is_na -gt 0 ] && [ $externo_is_na -eq 0 ]; then
-                echo "::error title=Validación de README.md::La tabla 'DataPower Interno' tiene todos los valores en N/A pero 'DataPower Externo' tiene apuntamientos. Si no hay apuntamientos, ambas tablas deben tener todos sus valores en N/A."
-                failed=1
-              elif [ $externo_is_na -gt 0 ] && [ $interno_is_na -eq 0 ]; then
-                echo "::error title=Validación de README.md::La tabla 'DataPower Externo' tiene todos los valores en N/A pero 'DataPower Interno' tiene apuntamientos. Si no hay apuntamientos, ambas tablas deben tener todos sus valores en N/A."
-                failed=1
-              elif [ $interno_is_na -gt 0 ] && [ $externo_is_na -gt 0 ]; then
+              if [ $interno_is_na -gt 0 ] && [ $externo_is_na -gt 0 ]; then
                 echo "::notice title=Validación de README.md::Ambas tablas DataPower tienen todos los valores en N/A (válido - sin apuntamientos)"
+              elif [ $interno_is_na -gt 0 ] || [ $externo_is_na -gt 0 ]; then
+                echo "::notice title=Validación de README.md::Una tabla DataPower tiene N/A y la otra tiene apuntamientos (válido)"
               fi
             fi
             
